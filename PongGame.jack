@@ -1,0 +1,238 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan e Schocken, MIT Press.
+// File name: projects/11/Pong/PongGame.jack
+
+/**
+ * Represents a Pong game.
+ */
+class PongGame {
+
+    static PongGame instance;   
+    
+    field Bat topBat, bottomBat; 
+    field Ball ball;            
+    field int wall;             
+    field boolean exit;         
+    
+    field int score1;           
+    field int score2;           
+    field int lastWall;         
+
+    field int batWidth;
+    
+    static int SCORE_LINE_P2;  
+    static int SCORE_LINE_P1;  
+    static int SCORE_COL;      
+
+    /** Constructs a new Pong game. */
+    constructor PongGame new() {
+        do Screen.clearScreen();
+        
+        let SCORE_LINE_P2 = 0;
+        let SCORE_LINE_P1 = 22;
+        let SCORE_COL = 10;
+        
+        let batWidth = 50;  
+        
+        let topBat = Bat.new(230, 0, batWidth, 7); 
+        let bottomBat = Bat.new(230, 229, batWidth, 7); 
+        
+        do topBat.setDirection(2); 
+        do bottomBat.setDirection(2); 
+        
+        let ball = Ball.new(253, 120, 0, 511, 0, 239); 
+        do ball.setDestination(400,0); 
+        
+        do Output.moveCursor(SCORE_LINE_P2,0);
+        do Output.printString("P2 Score: 0"); 
+        do Output.moveCursor(SCORE_LINE_P1,0);
+        do Output.printString("P1 Score: 0"); 
+
+        let exit = false;
+        let score1 = 0;
+        let score2 = 0;
+        let wall = 0;
+        let lastWall = 0;
+
+        return this;
+    }
+
+    /** Deallocates the object's memory. */
+    method void dispose() {
+        do topBat.dispose(); 
+        do bottomBat.dispose(); 
+        do ball.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+
+    /** Creates an instance of a Pong game. */
+    function void newInstance() {
+        let instance = PongGame.new();
+        return;
+    }
+    
+    /** Returns this Pong game. */
+    function PongGame getInstance() {
+        return instance;
+    }
+
+    /**
+     * Starts the game, e handles inputs from the user that control
+     * the bat's movement direction.
+     */
+    method void run() {
+        var char currentKey;
+        
+        while (~exit) {
+            
+            let currentKey = Keyboard.keyPressed();
+            
+            if (currentKey = 140) { // ESC
+                let exit = true; 
+            }
+            
+            // --- Player 1 (Bottom Bat) - Setas ---
+            if (currentKey = 130) { 
+                do bottomBat.setDirection(1); // Esquerda
+            }
+            else {
+                if (currentKey = 132) { 
+                    do bottomBat.setDirection(2); // Direita
+                } 
+            }
+
+            // --- Player 2 (Top Bat) - A e D (97 e 100) ---
+            if (currentKey = 97) { // 'a' 
+                do topBat.setDirection(1); // Esquerda
+            }
+            else {
+                if (currentKey = 100) { // 'd'
+                    do topBat.setDirection(2); // Direita
+                }
+            }
+            
+            do topBat.move();
+            do bottomBat.move();
+            do moveBall(); 
+            do Sys.wait(25); // <<<<<< ALTERADO PARA MAIOR VELOCIDADE (25ms)
+        }
+        
+        return;
+    }
+
+    /**
+     * Handles ball movement, including bouncing.
+     */
+    method void moveBall() {
+        var int bouncingDirection, batLeft, batRight, ballLeft, ballRight;
+        var boolean isHit; 
+        var int GO_LINE;   
+        var int GO_COL;    
+
+        let isHit = false;
+        
+        let wall = ball.move(); 
+
+        if ((wall = 1) | (wall = 2)) {
+            do ball.bounce(wall, 0); 
+            let lastWall = wall;
+            return;
+        }
+
+        // --- Checagem de Colisão e Game Over para BAT INFERIOR (Jogador 1) ---
+        if (ball.getBottom() > bottomBat.getTop()) { 
+            let ballLeft = ball.getLeft();
+            let ballRight = ball.getRight();
+            let batLeft = bottomBat.getLeft();
+            let batRight = bottomBat.getRight();
+            
+            // Prioridade 1: Colisão Horizontal
+            if (~((batLeft > ballRight) | (batRight < ballLeft))) {
+                // COLISÃO BEM-SUCEDIDA
+                let bouncingDirection = 0;
+                if (ballRight < (batLeft + 10)) { let bouncingDirection = -1; } 
+                else {
+                    if (ballLeft > (batRight - 10)) { let bouncingDirection = 1; } 
+                }
+                
+                do ball.setDestination(ball.getLeft(), 0); 
+                
+                let wall = 4;
+                do ball.bounce(wall, bouncingDirection);
+                let isHit = true;
+                
+                let batWidth = batWidth - 2;
+                do bottomBat.setWidth(batWidth);
+                let score1 = score1 + 1;
+                do Output.moveCursor(SCORE_LINE_P1, SCORE_COL);
+                do Output.printInt(score1);
+                
+                return;
+            }
+            else {
+                // Prioridade 2: Se falhou na colisão horizontal: GAME OVER!
+                do ball.hide();
+                let GO_LINE = 12; 
+                let GO_COL = 12; 
+                do Output.moveCursor(GO_LINE, GO_COL);
+                do Output.printString("Game Over - Jogador 1 perdeu");
+                let exit = true;
+                return;
+            }
+        }
+        
+        // --- Checagem de Colisão e Game Over para BAT SUPERIOR (Jogador 2) ---
+        if (~isHit) {
+            
+            // Se a bola está acima da linha de Bat superior (y=7)
+            if (ball.getTop() < topBat.getBottom()) {
+                let ballLeft = ball.getLeft();
+                let ballRight = ball.getRight();
+                let batLeft = topBat.getLeft();
+                let batRight = topBat.getRight();
+                
+                // Prioridade 1: Verifica se houve colisão horizontal
+                if (~((batLeft > ballRight) | (batRight < ballLeft))) {
+                    // COLISÃO BEM-SUCEDIDA
+                    
+                    let bouncingDirection = 0;
+                    if (ballRight < (batLeft + 10)) { let bouncingDirection = -1; } 
+                    else {
+                        if (ballLeft > (batRight - 10)) { let bouncingDirection = 1; } 
+                    }
+                    
+                    let wall = 3;
+                    do ball.bounce(wall, bouncingDirection); 
+                    
+                    let isHit = true;
+                    
+                    let batWidth = batWidth - 2;
+                    do topBat.setWidth(batWidth);
+                    let score2 = score2 + 1;
+                    do Output.moveCursor(SCORE_LINE_P2, SCORE_COL);
+                    do Output.printInt(score2);
+
+                    return;
+                }
+                else {
+                    // Prioridade 2: Se falhou na colisão horizontal: GAME OVER!
+                    do ball.hide();
+                    let GO_LINE = 12;
+                    let GO_COL = 12;
+                    do Output.moveCursor(GO_LINE, GO_COL);
+                    do Output.printString("Game Over - Jogador 2 perdeu");
+                    let exit = true;
+                    return;
+                }
+            }
+        }
+        
+        if (~isHit) {
+            let lastWall = 0; 
+        }
+
+        return;
+    }
+}

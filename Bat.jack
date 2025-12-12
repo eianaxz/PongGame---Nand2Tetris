@@ -1,0 +1,87 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan e Schocken, MIT Press.
+// File name: projects/11/Pong/Bat.jack
+
+/**
+ * Represents the bat of the Pong game.
+ * The bat is a rectangle that moves horizontally.
+ */
+class Bat {
+    field int x, y;     // current position
+    field int width, height; // current dimensions
+    field int direction; // 0=none, 1=left, 2=right
+
+    /** Constructs a new Bat with a given initial location and dimensions. */
+    constructor Bat new(int x_loc, int y_loc, int w, int h) {
+        let x = x_loc;
+        let y = y_loc;
+        let width = w;
+        let height = h;
+        let direction = 0;
+        do draw();
+        return this;
+    }
+
+    method void dispose() {
+        do hide();
+        do Memory.deAlloc(this);
+        return;
+    }
+
+    // Getters para checagem de colisão
+    method int getTop() { return y; }
+    method int getBottom() { return y + height; }
+    method int getLeft() { return x; }
+    method int getRight() { return x + width; }
+
+    /** Sets the bat's width. */
+    method void setWidth(int w) {
+        let width = w;
+        if (width < 2) { let width = 2; }
+        if (width > 50) { let width = 50; }
+        return;
+    }
+
+    /** Sets the bat's movement direction. */
+    method void setDirection(int d) {
+        let direction = d;
+        return;
+    }
+
+    /** Moves the bat one step in the current direction. */
+    method void move() {
+        var int newX;
+        
+        if (direction = 1) { // Left
+            let newX = x - 5;
+            if (newX < 0) { let newX = 0; }
+        } else {
+            if (direction = 2) { // Right
+                let newX = x + 5;
+                if ((newX + width) > 511) { let newX = 511 - width; }
+            } else {
+                let newX = x; // Não move se a direção é 0
+            }
+        }
+        
+        if (~(x = newX)) {
+            do hide();
+            let x = newX;
+            do draw();
+        }
+        return;
+    }
+    
+    method void draw() {
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x, y, x + width, y + height);
+        return;
+    }
+    
+    method void hide() {
+        do Screen.setColor(false);
+        do Screen.drawRectangle(x, y, x + width, y + height);
+        return;
+    }
+}

@@ -1,0 +1,205 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan e Schocken, MIT Press.
+// File name: projects/11/Pong/Ball.jack
+// Modificado: Corrigido o escopo de 'wall' e adicionado Anti-Divisão por Zero
+
+/**
+ * Represents the ball of the Pong game.
+ * The ball is controlled by its destination point (x, y) 
+ * and its current velocity (dx, dy).
+ */
+class Ball {
+    field int x, y;         // current position of the ball
+    field int xMin, xMax;   // x boundaries
+    field int yMin, yMax;   // y boundaries
+    field int size;         // current size
+    field int dx, dy;       // current direction vector
+    field int dL;           // dx * 1000, used for calculations
+    field int dS;           // dy * 1000
+    field int destX, destY; // destination coordinates
+    field int factor;       // used for slope calculation
+
+    /** Constructs a new Ball with a given initial location and boundaries. */
+    constructor Ball new(int x_loc, int y_loc, int x_min, int x_max, int y_min, int y_max) {
+        let x = x_loc;
+        let y = y_loc;
+        let xMin = x_min;
+        let xMax = x_max;
+        let yMin = y_min;
+        let yMax = y_max;
+        let size = 5;       // default size
+        do draw();
+        return this;
+    }
+
+    method void dispose() {
+        do hide();
+        do Memory.deAlloc(this);
+        return;
+    }
+    
+    method int getTop() { return y; }
+    method int getBottom() { return y + size; }
+    method int getLeft() { return x; }
+    method int getRight() { return x + size; }
+    
+    method void setDestination(int x_dest, int y_dest) {
+        let destX = x_dest;
+        let destY = y_dest;
+
+        let dx = destX - x;
+        let dy = destY - y;
+        
+        let dL = 0;
+        let dS = 0;
+
+        if (dx > 0) {
+            if (dy > 0) {
+                if (dx > dy) {
+                    let dL = dx;
+                    let dS = dy;
+                } else {
+                    let dL = dy;
+                    let dS = dx;
+                }
+            } else { // dy <= 0
+                let dy = -dy;
+                if (dx > dy) {
+                    let dL = dx;
+                    let dS = dy;
+                } else {
+                    let dL = dy;
+                    let dS = dx;
+                }
+                let dy = -dy;
+            }
+        } else { // dx <= 0
+            let dx = -dx;
+            if (dy > 0) {
+                if (dx > dy) {
+                    let dL = dx;
+                    let dS = dy;
+                } else {
+                    let dL = dy;
+                    let dS = dx;
+                }
+            } else { // dy <= 0
+                let dy = -dy;
+                if (dx > dy) {
+                    let dL = dx;
+                    let dS = dy;
+                } else {
+                    let dL = dy;
+                    let dS = dx;
+                }
+                let dy = -dy;
+            }
+            let dx = -dx;
+        }
+
+        // CORREÇÃO ANTI-DIVISÃO POR ZERO:
+        // Se dL é zero (dx=dy=0), define dL como 1 para evitar Math.divide(X, 0)
+        if (dL = 0) { let dL = 1; } 
+        
+        let factor = Math.divide(dS, dL);
+        return;
+    }
+
+    /** Moves the ball towards its destination. */
+    method int move() {
+        var int wall;
+        let wall = 0;
+        
+        if ((x = destX) & (y = destY)) { return 0; }
+        
+        do hide();
+        
+        if (dx > 0) {
+            let x = x + 1;
+            if (dy > 0) {
+                if (dx > dy) {
+                    if (factor < 500) { let y = y + 1; }
+                } else {
+                    let y = y + 1;
+                    if (factor > 500) { let x = x + 1; }
+                }
+            } else { // dy <= 0
+                if (dx > (-dy)) {
+                    if (factor < 500) { let y = y - 1; }
+                } else {
+                    let y = y - 1;
+                    if (factor > 500) { let x = x + 1; }
+                }
+            }
+        } else { // dx <= 0
+            let x = x - 1;
+            if (dy > 0) {
+                if ((-dx) > dy) {
+                    if (factor < 500) { let y = y + 1; }
+                } else {
+                    let y = y + 1;
+                    if (factor > 500) { let x = x - 1; }
+                }
+            } else { // dy <= 0
+                if ((-dx) > (-dy)) {
+                    if (factor < 500) { let y = y - 1; }
+                } else {
+                    let y = y - 1;
+                    if (factor > 500) { let x = x - 1; }
+                }
+            }
+        }
+        
+        if (x < xMin) {
+            let x = xMin;
+            let wall = 1;
+        }
+        if ((x + size) > xMax) {
+            let x = xMax - size;
+            let wall = 2;
+        }
+        if (y < yMin) {
+            let y = yMin;
+            let wall = 3;
+        }
+        if ((y + size) > yMax) {
+            let y = yMax - size;
+            let wall = 4;
+        }
+        
+        do draw();
+        return wall;
+    }
+    
+    /** Bounces the ball off a wall or bat. */
+    method void bounce(int hitWall, int batDirection) { // CORREÇÃO AQUI: ADICIONA hitWall
+        var int newDestX, newDestY;
+        
+        if ((hitWall = 1) | (hitWall = 2)) {
+            let newDestX = 511 - destX;
+            let newDestY = destY;
+        } else {
+            let newDestX = destX + (batDirection * 20); // Ajusta o X
+            let newDestY = 239 - destY; // Inverte o Y
+        }
+        
+        if (hitWall = 3) { let newDestY = 239; }
+        if (hitWall = 4) { let newDestY = 0; }
+        
+        do setDestination(newDestX, newDestY);
+        return;
+    }
+    
+    method void draw() {
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        return;
+    }
+    
+    method void hide() {
+        do Screen.setColor(false);
+        do Screen.drawRectangle(x, y, x + size, y + size);
+        return;
+    }
+}
