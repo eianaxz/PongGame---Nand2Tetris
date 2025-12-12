@@ -112,4 +112,4 @@ Pong/
 - Partículas e efeitos visuais 💥
 
 ## 👥 Autores
-**Você** e **Laura** – Projeto Nand2Tetris (Project 11) 🌟
+**Ana** e **Laura** – Projeto Nand2Tetris (Project 11) 🌟
